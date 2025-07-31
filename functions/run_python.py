@@ -1,4 +1,4 @@
-# pkg/run_python.py
+# functions/run_python.py
 
 import os
 import subprocess
@@ -38,9 +38,9 @@ def run_python_file(working_directory, file_path, args=[]):
         
         output = ""
         if stdout:
-            output += f"STDOUT: {stdout}\n"
+            output += f"STDOUT: {stdout}"
         if stderr:
-            output += f"STDERR: {stderr}\n"
+            output += f"STDERR: {stderr}"
         if completed_process.returncode != 0:
             output += f"Process exited with code {completed_process.returncode}"
         

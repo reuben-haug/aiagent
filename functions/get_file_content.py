@@ -21,7 +21,7 @@ def get_file_content(working_directory, file_path):
             file_content_string = f.read()
             if len(file_content_string) > MAX_CHARS:
                 file_content_string = file_content_string[:MAX_CHARS]
-        return file_content_string
+        return file_content_string.strip()
     except FileNotFoundError:
         return(f"Error: The file {file_path} was not found")
     except PermissionError:
