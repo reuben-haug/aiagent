@@ -36,60 +36,65 @@ def main():
         parts=[types.Part(text=input_prompt)])
     ]
 
-    generate_content(client, messages, verbose)
+    result = generate_content(client, messages, verbose)
+    print(result)
 
 def generate_content(client, messages, verbose):
-    # GenerateContentResponse object assignment
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
-        contents=messages,
-        config=types.GenerateContentConfig(
-        tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
+    max_iterations = 20
+    for i in range(max_iterations):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash-001",
+                contents=messages,
+                config=types.GenerateContentConfig(
+                    tools=[available_functions], system_instruction=system_prompt
+                ),
+            )
 
-    if verbose:
-            print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-            print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-    
-    if not response.function_calls:
-        return response.text
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
-    function_responses = []
-    for function_call_part in response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        if (
-            not function_call_result.parts
-            or not function_call_result.parts[0].function_response
-        ):
-            raise Exception("No function response in returned content.")
-        if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response['result']}")
-        function_responses.append(function_call_result.parts[0])
-
-    if not function_responses:
-        raise Exception("No function response generated.")
-    
-    '''
-    if response.function_calls:
-        for func in response.function_calls:
-            func_call_result = call_function(func, verbose=verbose)
-
-            if (
-                not func_call_result.parts or
-                not hasattr(func_call_result.parts[0], "function_response") or
-                func_call_result.parts[0].function_response is None or
-                not hasattr(func_call_result.parts[0].function_response, "response") or
-                func_call_result.parts[0].function_response.response is None
-            ):
-                raise Exception("No function response in returned content!")
-        
-            result = func_call_result.parts[0].function_response.response
-        
             if verbose:
-                print(f"-> {result}")
-            else:
-                print(result)
-    '''
+                print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+                print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+            if not response.function_calls:
+                if hasattr(response, "text") and response.text:
+                    return response.text
+                else:
+                    continue
+
+            function_responses = []
+            for function_call_part in response.function_calls:
+                function_call_result = call_function(function_call_part, verbose)
+                messages.append(types.Content(
+                    role="tool",
+                    parts=[
+                        types.Part.from_function_response(
+                            name=str(function_call_part.name),
+                            response=function_call_result.parts[0].function_response.response
+                        )
+                    ],
+                ))
+
+                if (
+                    not function_call_result.parts
+                    or not function_call_result.parts[0].function_response
+                ):
+                    raise Exception("No function response in returned content.")
+                if verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response['result']}")
+                function_responses.append(function_call_result.parts[0])
+
+            if not function_responses:
+                raise Exception("No function response generated.")
+
+        except Exception as e:
+            print(f"Error during iteration {i+1}: {e}")
+            break
+
+    return None
+
+    
 if __name__ == "__main__":
     main()
